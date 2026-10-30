@@ -17,35 +17,33 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Locate and extract project ZIP
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Extract project ZIP
         run: |
           ZIP=$(find . -maxdepth 2 -name '*.zip' | head -n 1)
-          if [ -z "$ZIP" ]; then
-            echo "Project ZIP not found"
-            exit 1
-          fi
+          test -n "$ZIP" || { echo "ZIP not found"; exit 1; }
           mkdir project
           unzip -q "$ZIP" -d project
-          GRADLE_FILE=$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1)
-          if [ -z "$GRADLE_FILE" ]; then
-            echo "Gradle project not found in ZIP"
-            exit 1
-          fi
-          echo "PROJECT_DIR=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
+          PROJECT_DIR=$(dirname "$(find project -name settings.gradle -o -name settings.gradle.kts | head -n 1)")
+          test -f "$PROJECT_DIR/settings.gradle" -o -f "$PROJECT_DIR/settings.gradle.kts"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
