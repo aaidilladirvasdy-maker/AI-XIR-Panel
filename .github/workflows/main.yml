@@ -16,17 +16,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Accept Android SDK licenses
-        run: yes | sdkmanager --licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+
+      - name: Install Android SDK packages
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Extract project ZIP
         run: |
@@ -39,19 +41,17 @@ jobs:
           unzip -q "$ZIP" -d project
           GRADLE_FILE=$(find project \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
           if [ -z "$GRADLE_FILE" ]; then
-            echo "ERROR: Gradle settings file not found"
-            find project -maxdepth 4 -type f
+            echo "ERROR: Gradle settings not found"
             exit 1
           fi
-          PROJECT_DIR=$(dirname "$GRADLE_FILE")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "PROJECT_DIR=$(dirname "$GRADLE_FILE")" >> "$GITHUB_ENV"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
 
-      - name: Build Debug APK
+      - name: Build APK
         run: |
           cd "$PROJECT_DIR"
           gradle assembleDebug
@@ -62,4 +62,3 @@ jobs:
           name: AI-XIR-APK
           path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
-          
